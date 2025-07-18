@@ -2,71 +2,65 @@ import router from "./router";
 import store from "./store";
 import { getToken } from "@/utils/auth";
 import { Message } from "element-ui";
-import NProgress from "nprogress"; // 页面顶部进度条
-import "nprogress/nprogress.css";
-import getPageTitle from "@/utils/get-page-title";
+import NProgress from "nprogress"; // 水平进度条提示: 在跳转路由时使用
+import "nprogress/nprogress.css"; // 水平进度条样式
+import getPageTitle from "@/utils/get-page-title"; // 获取应用头部标题的函数
 import Layout from "@/layout";
 import ParentView from "@/components/ParentView";
+const _import = require("./router/_import_" + process.env.NODE_ENV); // 获取组件的方法
 
-// const _import = require("./router/_import_" + process.env.NODE_ENV);
-
-const _import = require("./router/_import_development");
-
-NProgress.configure({ showSpinner: false });
-
-const whiteList = ["/login"];
+NProgress.configure({ showSpinner: false }); // NProgress Configuration
+const whiteList = ["/login"]; // no redirect whitelist
 
 router.beforeEach(async (to, from, next) => {
   NProgress.start();
-
-  // 设置页面标题
+  // set page title
   document.title = getPageTitle(to.meta.title);
 
-  // 判断是否有token
+  // 在这里打印当前变量状态，方便调试
   const hasToken = getToken();
+  console.log("hasToken:", hasToken);
+
+  const hasGetUserInfo = store.getters.name;
+  console.log("hasGetUserInfo:", hasGetUserInfo);
+
+  console.log("to.path:", to.path);
+
+  console.log("menus:", store.getters.menus);
 
   if (hasToken) {
     if (to.path === "/login") {
       next({ path: "/" });
       NProgress.done();
     } else {
-      const hasGetUserInfo = store.getters.name;
       if (hasGetUserInfo) {
         next();
       } else {
         try {
-          // 请求用户信息
-          await store.dispatch("user/getInfo");
-          const menus = store.getters.menus || [];
-
-          if (menus.length < 1) {
+          await store.dispatch("user/getInfo"); // 请求获取用户信息
+          if (store.getters.menus.length < 1) {
             global.antRouter = [];
-            next();
-            NProgress.done();
-            return;
           }
-          const filteredMenus = filterAsyncRouter(menus);
-          console.log(`output->fi`, filteredMenus);
-          console.log(`output->to.path`, to.path);
-          router.addRoutes(filteredMenus);
-
-          // 添加404路由
-          router.addRoutes([{ path: "*", redirect: "/404", hidden: true }]);
-
-          global.antRouter = filteredMenus;
-
-          next({ ...to, replace: true });
+          const menus = filterAsyncRouter(store.getters.menus); // 过滤路由
+          console.log("filtered menus:", menus);
+          router.addRoutes(menus); // 动态添加路由
+          let lastRou = [{ path: "*", redirect: "/404", hidden: true }];
+          router.addRoutes(lastRou);
+          global.antRouter = menus; // 传递给全局变量，做菜单渲染用
+          next({
+            ...to,
+            replace: true,
+          });
         } catch (error) {
-          console.log(`output->router.routes`, error);
+          console.log(error);
           await store.dispatch("user/resetToken");
-          // Message.error(error || "Has Error");
+          Message.error(error || "Has Error");
           next(`/login?redirect=${to.path}`);
           NProgress.done();
         }
       }
     }
   } else {
-    // 无token且白名单允许的路径，直接放行
     if (whiteList.indexOf(to.path) !== -1) {
       next();
     } else {
@@ -77,11 +71,11 @@ router.beforeEach(async (to, from, next) => {
 });
 
 router.afterEach(() => {
+  // finish progress bar
   NProgress.done();
-});
-
+}); // 遍历后台传来的路由字符串，转换为组件对象
 function filterAsyncRouter(asyncRouterMap) {
-  return asyncRouterMap.filter((route) => {
+  const accessedRouters = asyncRouterMap.filter((route) => {
     if (route.component) {
       if (route.component === "Layout") {
         route.component = Layout;
@@ -89,10 +83,11 @@ function filterAsyncRouter(asyncRouterMap) {
         route.component = ParentView;
       } else {
         try {
-          route.component = _import(route.component);
+          route.component = _import(route.component); // 导入组件
         } catch (error) {
-          console.error(error);
-          route.component = _import("dashboard/index");
+          debugger;
+          console.log(error);
+          route.component = _import("dashboard/index"); // 导入组件
         }
       }
     }
@@ -103,6 +98,5 @@ function filterAsyncRouter(asyncRouterMap) {
     }
     return true;
   });
+  return accessedRouters;
 }
-
-export default router;
