@@ -42,6 +42,24 @@
       <el-table-column label="操作" width="250" align="center">
         <template slot-scope="scope">
           <el-button
+            type="info"
+            size="mini"
+            @click="show(scope.row)"
+            icon="el-icon-view"
+            title="查看审批设置"
+          ></el-button>
+
+          <el-button
+            v-if="scope.row.status == 0"
+            type="warning"
+            icon="el-icon-upload2"
+            size="mini"
+            @click="publish(scope.row.id)"
+            :disabled="$hasBP('bnt.processTemplate.publish') === false"
+            title="发布"
+          ></el-button>
+
+          <el-button
             type="primary"
             icon="el-icon-edit"
             size="mini"
@@ -73,6 +91,46 @@
       @current-change="fetchData"
       @size-change="changeSize"
     />
+    <el-dialog
+      title="查看审批设置"
+      :visible.sync="formDialogVisible"
+      width="35%"
+    >
+      <h3>基本信息</h3>
+
+      <el-divider />
+      <el-form
+        ref="flashPromotionForm"
+        label-width="150px"
+        size="small"
+        style="padding-right: 40px"
+      >
+        <el-form-item label="审批类型" style="margin-bottom: 0px">{{
+          processTemplate.processTypeName
+        }}</el-form-item>
+
+        <el-form-item label="名称" style="margin-bottom: 0px">{{
+          processTemplate.name
+        }}</el-form-item>
+
+        <el-form-item label="创建时间" style="margin-bottom: 0px">{{
+          processTemplate.createTime
+        }}</el-form-item>
+      </el-form>
+
+      <h3>表单信息</h3>
+
+      <el-divider />
+      <div>
+        <form-create :rule="rule" :option="option"></form-create>
+      </div>
+
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="formDialogVisible = false" size="small"
+          >取 消</el-button
+        >
+      </span>
+    </el-dialog>
   </div>
 </template>
 
@@ -89,6 +147,11 @@ export default {
       page: 1, // 默认页码
       limit: 10, // 每页记录数
       searchObj: {}, // 查询表单对象
+
+      rule: [],
+      option: {},
+      processTemplate: {},
+      formDialogVisible: false,
     };
   },
   // 生命周期函数：内存准备完毕，页面尚未渲染
@@ -143,8 +206,38 @@ export default {
       console.log(`output->this.$route`, this.$route);
       this.$router.push("/processSet/templateSet");
     },
+    show(row) {
+      console.log("formProps:", row.formProps);
+      console.log("formOptions:", row.formOptions);
+      try {
+        this.rule = JSON.parse(row.formProps || "{}");
+        this.option = JSON.parse(row.formOptions || "{}");
+        this.processTemplate = row;
+        this.formDialogVisible = true;
+      } catch (e) {
+        this.$message.error("表单配置解析失败，请检查数据格式");
+        console.error("JSON.parse error:", e);
+      }
+    },
     edit(id) {
       this.$router.push("/processSet/templateSet?id=" + id);
+    },
+    publish(id) {
+      this.$confirm("确认要发布该审批模板吗？", "提示", {
+        confirmButtonText: "确认",
+        cancelButtonText: "取消",
+        type: "warning",
+      })
+        .then(() => {
+          return api.publish(id);
+        })
+        .then(() => {
+          this.$message.success("发布成功");
+          this.fetchData(this.page);
+        })
+        .catch(() => {
+          this.$message.info("已取消发布");
+        });
     },
   },
 };

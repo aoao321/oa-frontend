@@ -43,4 +43,10 @@ export default {
       method: "get",
     });
   },
+  publish(id) {
+    return request({
+      url: `${api_name}/publish/${id}`,
+      method: "put",
+    });
+  },
 };

@@ -28,7 +28,7 @@
       <el-table-column prop="sortValue" label="排序" width="60" />
       <el-table-column label="状态" width="80">
         <template slot-scope="scope">
-          <el-switch v-model="scope.row.status === 1" disabled="true">
+          <el-switch :value="scope.row.status === 1" :disabled="true">
           </el-switch>
         </template>
       </el-table-column>

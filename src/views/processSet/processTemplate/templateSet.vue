@@ -257,7 +257,7 @@ export default {
       ],
 
       uploadHeaders: {
-        token: store.getters.token,
+        Authorization: `Bearer ${store.getters.token}`,
       },
       fileList: [],
     };
