@@ -45,12 +45,25 @@ service.interceptors.response.use(
     }
   },
   (error) => {
-    console.log("err" + error); // for debug
-    Message({
-      message: error.message,
-      type: "error",
-      duration: 5 * 1000,
-    });
+    const status = error.response && error.response.status;
+
+    if (status === 401) {
+      MessageBox.confirm("登录状态已失效，请重新登录", "提示", {
+        confirmButtonText: "重新登录",
+        type: "warning",
+      }).then(() => {
+        store.dispatch("user/resetToken").then(() => {
+          location.reload(); // vue-element-admin 推荐
+        });
+      });
+    } else {
+      Message({
+        message: error.message || "请求错误",
+        type: "error",
+        duration: 5 * 1000,
+      });
+    }
+
     return Promise.reject(error);
   }
 );
